@@ -1,0 +1,24 @@
+# Google vendor ID for ADB
+SUBSYSTEM=="usb",ATTRS{idVendor}=="18d1",ATTRS{idProduct}=="0001",MODE="0666"
+# Google vendor ID for ADB
+SUBSYSTEM=="usb",ATTRS{idVendor}=="18d1",ATTRS{idProduct}=="0002",MODE="0666"
+# Google vendor ID for ADB
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0bb4", ATTRS{idProduct}=="0c02", MODE="0666"
+# Google vendor ID for ADB
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0bb4", ATTRS{idProduct}=="0ffc", MODE="0666"
+# Google vendor ID for ADB
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0bb4", ATTRS{idProduct}=="0ffe", MODE="0666"
+
+# Intel vendor ID for ADB
+SUBSYSTEM=="usb", ATTRS{idVendor}=="8087", MODE:="0666"
+
+#intel vendor ID for SOC device
+SUBSYSTEM=="usb", ATTRS{idVendor}=="8086", MODE="0666"
+
+#Fastboot low-level bootloader
+SUBSYSTEM=="usb",SYSFS{idVendor}=="18d1", SYSFS{idProduct}=="d00d", MODE="0777",GROUP="adm"
+
+#adb composite interface device 9025
+SUBSYSTEM=="usb",SYSFS(idVendor}=="05C6", SYSFS(idPRoduct}=="9025", MODE="0777", GROUP="adm"
+SUBSYSTEM=="usb",SYSFS(idVendor}=="05C6", SYSFS(idPRoduct}=="9031", MODE="0777", GROUP="adm"
+

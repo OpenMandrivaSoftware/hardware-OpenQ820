@@ -1,0 +1,114 @@
+#!/bin/sh
+set -x
+
+if [ "`id -u`" != 0 ]; then
+	exec sudo "$0" "$@"
+fi
+cd $(dirname $(realpath $0))
+OURDIR="$(pwd)"
+
+ROOTFS=$(mktemp -d /tmp/aarch64-root.XXXXXX)
+if [ -z "$ROOTFS" ]; then
+	echo "Install or fix mktemp"
+	exit 1
+fi
+
+which aarch64-linux-gnu-ld &>/dev/null || urpmi cross-aarch64-linux-gnu-binutils
+which aarch64-linux-gnu-gcc &>/dev/null || urpmi cross-aarch64-linux-gnu-gcc
+which make_ext4fs &>/dev/null || urpmi android-tools
+which qemu-static-aarch64 &>/dev/null || urpmi qemu-static-aarch64
+
+if ! which make_ext4fs &>/dev/null; then
+	echo "Install android-tools from cooker"
+	exit 1
+fi
+
+[ -d skales ] || git clone git://codeaurora.org/quic/kernel/skales
+if [ -d kernel ]; then
+	cd kernel
+	git pull
+	cd ..
+else
+	git clone --depth 1 -b hardware/OpenQ820/4.11 https://github.com/OpenMandrivaSoftware/linux.git kernel
+fi
+KERNELDIR=$(pwd)/kernel
+
+cd kernel
+make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- oq820_defconfig
+make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j$(getconf _NPROCESSORS_ONLN) Image dtbs modules
+cd ..
+
+# https://abf.openmandriva.org/platforms/cooker/products/47/product_build_lists/1052
+[ -e rootfs-aarch64-systemd.tar.xz ] || wget -O rootfs-aarch64-systemd.tar.xz http://file-store.openmandriva.org/api/v1/file_stores/b27a2de55894b33ba492c0cd13d1f05fd3796e7d
+
+KERNEL=$(cat ${KERNELDIR}/include/config/kernel.release)
+
+rm -f Android/system.ext4 Android/userdata.ext4
+cd ${ROOTFS}
+tar xf ${OURDIR}/rootfs-aarch64-systemd.tar.xz
+mount --bind /proc ${ROOTFS}/proc
+mount --bind /sys ${ROOTFS}/sys
+mount --bind /dev ${ROOTFS}/dev
+mount --bind /dev/pts ${ROOTFS}/dev/pts
+mount --bind /run ${ROOTFS}/run
+cat ${ROOTFS}/etc/os-release >${ROOTFS}/usr/lib/os-release
+
+# Create omv user (password omv)
+echo 'omv:x:1001:1001::/home/omv:/bin/bash' >>${ROOTFS}/etc/passwd
+echo 'omv:$6$rG3bQ92hkTNubV1p$5qPB9FoXBhNcSE1FOklCoEDowveAgjSf2cHYVwCENZaWtgpFQaRRRN5Ihwd8nuaKMdA1R1XouOasJ7u5dbiGt0:17302:0:99999:7:::' >>${ROOTFS}/etc/shadow
+echo 'omv:x:1001:' >>${ROOTFS}/etc/group
+sed -i -e 's,wheel:x:10:$,wheel:x:10:omv,' ${ROOTFS}/etc/group
+
+# Unlock root account (also password omv)
+sed -i -e 's,^root:.:,root:$6$rG3bQ92hkTNubV1p$5qPB9FoXBhNcSE1FOklCoEDowveAgjSf2cHYVwCENZaWtgpFQaRRRN5Ihwd8nuaKMdA1R1XouOasJ7u5dbiGt0:,' ${ROOTFS}/etc/shadow
+
+cp /usr/bin/qemu-static-aarch64 ${ROOTFS}/usr/bin
+cd ${KERNELDIR}
+make modules_install INSTALL_MOD_PATH=${ROOTFS} ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
+chroot ${ROOTFS} /usr/sbin/urpmi --no-verify-rpm --auto-update
+chroot ${ROOTFS} /usr/sbin/urpmi --no-verify-rpm --auto kernel-firmware dracut less procps-ng htop fbset iproute2 net-tools pciutils usbutils wpa_supplicant iw iproute2 net-tools wireless-tools networkmanager openssh-server dhcp-client
+# TODO: add: sddm x11-driver-video-modesetting lib64dri-drivers-freedreno
+chroot ${ROOTFS} /sbin/dracut --xz --omit-drivers pata_acpi -o ifcfg -o lvm -o mdraid -o aufs-mount -f /boot/initrd-${KERNEL}.img ${KERNEL}
+chroot ${ROOTFS} systemctl set-default multi-user.target
+chroot ${ROOTFS} systemctl enable getty@tty1.service
+chroot ${ROOTFS} systemctl enable getty@ttyMSM0.service
+chroot ${ROOTFS} systemctl enable sshd.service
+for i in getty sshd systemd-user-sessions; do
+# FIXME may need to add NetworkManager systemd-networkd systemd-resolved
+	[ -e ${ROOTFS}/lib/systemd/system/$i.target ] && ln -s /lib/systemd/system/$i.target ${ROOTFS}/etc/systemd/system/multi-user.target.wants/
+	[ -e ${ROOTFS}/lib/systemd/system/$i.service ] && ln -s /lib/systemd/system/$i.target ${ROOTFS}/etc/systemd/system/multi-user.target.wants/
+done
+cat >${ROOTFS}/etc/fstab <<'EOF'
+/dev/sde18	/	ext4	defaults,noatime,discard	0	0
+EOF
+# FIXME should add
+# /dev/sda9	/home	ext4	defaults,noatime,discard	0	1
+cd ${OURDIR}
+rm -f ${ROOTFS}/usr/bin/qemu-static-aarch64
+
+${OURDIR}/skales/dtbTool -s 4096 -o /tmp/dt.img ${KERNELDIR}/arch/arm64/boot/dts/qcom/
+${OURDIR}/skales/mkbootimg --kernel ${KERNELDIR}/arch/arm64/boot/Image \
+	--ramdisk ${ROOTFS}/boot/initrd-${KERNEL}.img \
+	--output Android/boot.img \
+	--dt /tmp/dt.img \
+	--pagesize 4096 \
+	--base 0x80000000 \
+	--cmdline "root=/dev/disk/by-partlabel/system rw rootwait console=ttyMSM0,115200n8 systemd.unit=multi-user.target"
+rm -f /tmp/dt.img
+
+umount ${ROOTFS}/run
+umount ${ROOTFS}/dev/pts
+umount ${ROOTFS}/dev
+umount ${ROOTFS}/sys
+umount ${ROOTFS}/proc
+
+# FIXME we may need to make make_ext4fs understand device nodes
+rm -f ${ROOTFS}/dev/null
+make_ext4fs -s -l 2G Android/system.img ${ROOTFS}
+
+rm -rf ${ROOTFS}/*
+mkdir ${ROOTFS}/omv
+chown omv:omv ${ROOTFS}/omv
+make_ext4fs -s -l 10G Android/userdata.img ${ROOTFS}
+
+rm -rf ${ROOTFS}
