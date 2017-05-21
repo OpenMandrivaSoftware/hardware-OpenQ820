@@ -1,5 +1,5 @@
 ANDROIDROOT=Android
-FASTBOOT_DIR=./AdbFastboot
+FASTBOOT_DIR=/usr/bin
 
 $FASTBOOT_DIR/fastboot flash boot $ANDROIDROOT/boot.img
 $FASTBOOT_DIR/fastboot flash cache $ANDROIDROOT/cache.img
