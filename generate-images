@@ -13,8 +13,8 @@ if [ -z "$ROOTFS" ]; then
 	exit 1
 fi
 
-which aarch64-linux-gnu-ld &>/dev/null || urpmi cross-aarch64-linux-gnu-binutils
-which aarch64-linux-gnu-gcc &>/dev/null || urpmi cross-aarch64-linux-gnu-gcc
+which aarch64-linux-gnu-ld &>/dev/null || urpmi cross-aarch64-mandriva-linux-gnu-binutils
+which aarch64-linux-gnu-gcc &>/dev/null || urpmi cross-aarch64-linux-gnu-gcc-bootstrap
 which make_ext4fs &>/dev/null || urpmi android-tools
 which qemu-static-aarch64 &>/dev/null || urpmi qemu-static-aarch64
 
@@ -67,7 +67,7 @@ cd ${KERNELDIR}
 make modules_install INSTALL_MOD_PATH=${ROOTFS} ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
 chroot ${ROOTFS} /usr/sbin/urpmi --no-verify-rpm --auto-update
 chroot ${ROOTFS} /usr/sbin/urpmi --no-verify-rpm --auto kernel-firmware dracut less procps-ng htop fbset iproute2 net-tools pciutils usbutils wpa_supplicant iw iproute2 net-tools wireless-tools networkmanager openssh-server dhcp-client
-# TODO: add: sddm x11-driver-video-modesetting lib64dri-drivers-freedreno
+chroot ${ROOTFS} /usr/sbin/urpmi --no-verify-rpm --auto sddm x11-driver-video-modesetting lib64dri-drivers-freedreno
 chroot ${ROOTFS} /sbin/dracut --xz --omit-drivers pata_acpi -o ifcfg -o lvm -o mdraid -o aufs-mount -f /boot/initrd-${KERNEL}.img ${KERNEL}
 chroot ${ROOTFS} systemctl set-default multi-user.target
 chroot ${ROOTFS} systemctl enable getty@tty1.service
