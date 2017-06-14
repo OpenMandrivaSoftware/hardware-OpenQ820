@@ -13,10 +13,10 @@ if [ -z "$ROOTFS" ]; then
 	exit 1
 fi
 
-which aarch64-linux-gnu-ld &>/dev/null || urpmi cross-aarch64-mandriva-linux-gnu-binutils
-which aarch64-linux-gnu-gcc &>/dev/null || urpmi cross-aarch64-linux-gnu-gcc-bootstrap
-which make_ext4fs &>/dev/null || urpmi android-tools
-which qemu-static-aarch64 &>/dev/null || urpmi qemu-static-aarch64
+which aarch64-linux-gnu-ld &>/dev/null || urpmi --auto cross-aarch64-mandriva-linux-gnu-binutils
+which aarch64-linux-gnu-gcc &>/dev/null || urpmi --auto cross-aarch64-mandriva-linux-gnu-gcc-bootstrap
+which make_ext4fs &>/dev/null || urpmi --auto android-tools
+which qemu-static-aarch64 &>/dev/null || urpmi --auto qemu-static-aarch64
 
 if ! which make_ext4fs &>/dev/null; then
 	echo "Install android-tools from cooker"
@@ -65,7 +65,7 @@ sed -i -e 's,^root:.:,root:$6$rG3bQ92hkTNubV1p$5qPB9FoXBhNcSE1FOklCoEDowveAgjSf2
 cp /usr/bin/qemu-static-aarch64 ${ROOTFS}/usr/bin
 cd ${KERNELDIR}
 make modules_install INSTALL_MOD_PATH=${ROOTFS} ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
-chroot ${ROOTFS} /usr/sbin/urpmi --no-verify-rpm --auto-update
+chroot ${ROOTFS} /usr/sbin/urpmi --auto --no-verify-rpm --auto-update
 chroot ${ROOTFS} /usr/sbin/urpmi --no-verify-rpm --auto kernel-firmware dracut less procps-ng htop fbset iproute2 net-tools pciutils usbutils wpa_supplicant iw iproute2 net-tools wireless-tools networkmanager openssh-server dhcp-client
 chroot ${ROOTFS} /usr/sbin/urpmi --no-verify-rpm --auto sddm x11-driver-video-modesetting lib64dri-drivers-freedreno
 chroot ${ROOTFS} /sbin/dracut --xz --omit-drivers pata_acpi -o ifcfg -o lvm -o mdraid -o aufs-mount -f /boot/initrd-${KERNEL}.img ${KERNEL}
@@ -108,7 +108,7 @@ make_ext4fs -s -l 2G Android/system.img ${ROOTFS}
 
 rm -rf ${ROOTFS}/*
 mkdir ${ROOTFS}/omv
-chown omv:omv ${ROOTFS}/omv
+chown 1001:1001 ${ROOTFS}/omv
 make_ext4fs -s -l 10G Android/userdata.img ${ROOTFS}
 
 rm -rf ${ROOTFS}
