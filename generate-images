@@ -29,7 +29,7 @@ if [ -d kernel ]; then
 	git pull
 	cd ..
 else
-	git clone --depth 1 -b hardware/OpenQ820/experimental/4.11.5-rebase https://github.com/OpenMandrivaSoftware/linux.git kernel
+	git clone --depth 1 -b hardware/OpenQ820/4.11.6 https://github.com/OpenMandrivaSoftware/linux.git kernel
 fi
 KERNELDIR=$(pwd)/kernel
 
@@ -66,7 +66,7 @@ cp /usr/bin/qemu-static-aarch64 ${ROOTFS}/usr/bin
 cd ${KERNELDIR}
 make modules_install INSTALL_MOD_PATH=${ROOTFS} ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
 chroot ${ROOTFS} /usr/sbin/urpmi --auto --no-verify-rpm --auto-update
-chroot ${ROOTFS} /usr/sbin/urpmi --no-verify-rpm --auto kernel-firmware dracut less procps-ng htop fbset iproute2 net-tools pciutils usbutils wpa_supplicant iw iproute2 net-tools wireless-tools networkmanager openssh-server dhcp-client
+chroot ${ROOTFS} /usr/sbin/urpmi --no-verify-rpm --auto kernel-firmware adreno-firmware dracut less procps-ng htop fbset iproute2 net-tools pciutils usbutils wpa_supplicant iw iproute2 net-tools wireless-tools networkmanager openssh-server dhcp-client
 chroot ${ROOTFS} /usr/sbin/urpmi --no-verify-rpm --auto sddm x11-driver-video-modesetting lib64dri-drivers-freedreno
 chroot ${ROOTFS} /usr/sbin/urpmi --no-verify-rpm --auto vim-enhanced strace
 chroot ${ROOTFS} /sbin/dracut --xz --omit-drivers pata_acpi -o ifcfg -o lvm -o mdraid -o aufs-mount -f /boot/initrd-${KERNEL}.img ${KERNEL}
@@ -84,15 +84,6 @@ cat >${ROOTFS}/etc/fstab <<'EOF'
 EOF
 # FIXME should add
 # /dev/sda9	/home	ext4	defaults,noatime,discard	0	1
-
-# Update ATH10K firmware
-rm -f ${ROOTFS}/lib/firmware/ath10k/QCA6174/hw3.0/board-2.bin
-wget -O ${ROOTFS}/lib/firmware/ath10k/QCA6174/hw3.0/board-2.bin https://github.com/kvalo/ath10k-firmware/raw/master/QCA6174/hw3.0/board-2.bin
-
-# Try to get Freedreno firmware -- not sure this is an exact match
-for i in a530_gpmu.fw2 a530_pfp.fw a530_pm4.fw a530_zap.b00 a530_zap.b01 a530_zap.b02 a530_zap.elf a530_zap.mdt a530v1_pfp.fw a530v1_pm4.fw a530v2_seq.fw2 a530v3_gpmu.fw2 a530v3_seq.fw2; do
-	wget -O ${ROOTFS}/lib/firmware/$i http://svn.badboyzsvns.com/HTC10_SPR_1.24/system/etc/firmware/$i
-done
 
 # FIXME REMOVE BEFORE PRODUCTION BUILD -- allow root login for convenience
 echo 'PermitRootLogin yes' >>${ROOTFS}/etc/ssh/sshd_config
