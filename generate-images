@@ -68,6 +68,7 @@ make modules_install INSTALL_MOD_PATH=${ROOTFS} ARCH=arm64 CROSS_COMPILE=aarch64
 chroot ${ROOTFS} /usr/sbin/urpmi --auto --no-verify-rpm --auto-update
 chroot ${ROOTFS} /usr/sbin/urpmi --no-verify-rpm --auto kernel-firmware dracut less procps-ng htop fbset iproute2 net-tools pciutils usbutils wpa_supplicant iw iproute2 net-tools wireless-tools networkmanager openssh-server dhcp-client
 chroot ${ROOTFS} /usr/sbin/urpmi --no-verify-rpm --auto sddm x11-driver-video-modesetting lib64dri-drivers-freedreno
+chroot ${ROOTFS} /usr/sbin/urpmi --no-verify-rpm --auto vim-enhanced
 chroot ${ROOTFS} /sbin/dracut --xz --omit-drivers pata_acpi -o ifcfg -o lvm -o mdraid -o aufs-mount -f /boot/initrd-${KERNEL}.img ${KERNEL}
 chroot ${ROOTFS} systemctl set-default multi-user.target
 chroot ${ROOTFS} systemctl enable getty@tty1.service
@@ -76,13 +77,62 @@ chroot ${ROOTFS} systemctl enable sshd.service
 for i in getty sshd systemd-user-sessions; do
 # FIXME may need to add NetworkManager systemd-networkd systemd-resolved
 	[ -e ${ROOTFS}/lib/systemd/system/$i.target ] && ln -s /lib/systemd/system/$i.target ${ROOTFS}/etc/systemd/system/multi-user.target.wants/
-	[ -e ${ROOTFS}/lib/systemd/system/$i.service ] && ln -s /lib/systemd/system/$i.target ${ROOTFS}/etc/systemd/system/multi-user.target.wants/
+	[ -e ${ROOTFS}/lib/systemd/system/$i.service ] && ln -s /lib/systemd/system/$i.service ${ROOTFS}/etc/systemd/system/multi-user.target.wants/
 done
 cat >${ROOTFS}/etc/fstab <<'EOF'
 /dev/sde18	/	ext4	defaults,noatime,discard	0	0
 EOF
 # FIXME should add
 # /dev/sda9	/home	ext4	defaults,noatime,discard	0	1
+
+# Update ATH10K firmware
+rm -f ${ROOTFS}/lib/firmware/ath10k/QCA6174/hw3.0/board-2.bin
+wget -O ${ROOTFS}/lib/firmware/ath10k/QCA6174/hw3.0/board-2.bin https://github.com/kvalo/ath10k-firmware/raw/master/QCA6174/hw3.0/board-2.bin
+
+# FIXME REMOVE BEFORE PRODUCTION BUILD -- allow root login for convenience
+echo 'PermitRootLogin yes' >>${ROOTFS}/etc/ssh/sshd_config
+rm ${ROOTFS}/etc/ssh/denyusers
+touch ${ROOTFS}/etc/ssh/denyusers
+
+cat >${ROOTFS}/usr/sbin/wifi-up <<'EOF'
+#!/bin/sh
+if [ -n "$1" ]; then
+	SSID="$1"
+	shift
+else
+	echo -n "SSID: "
+	read SSID
+fi
+if [ -n "$1" ]; then
+	PASSWORD="$1"
+	shift
+else
+	echo -n "Password (WARNING: will be visible): "
+	read PASSWORD
+fi
+cat >/tmp/wpa.conf <<END
+network={
+	ssid="$SSID"
+	psk="$PASSWORD"
+}
+END
+killall wpa_supplicant &>/dev/null
+/sbin/modprobe ath10k_pci
+sleep 2s
+/sbin/ifconfig wlan0 up
+sleep 1s
+# Yes, needs to be done twice... Probably timing
+/sbin/ifconfig wlan0 up
+sleep 1s
+/usr/sbin/wpa_supplicant -B -c /tmp/wpa.conf -Dnl80211 -iwlan0
+sleep 1s
+/sbin/iw dev wlan0 connect $SSID
+sleep 1s
+rm -f /etc/resolv.conf
+/sbin/dhclient wlan0
+EOF
+chmod +x ${ROOTFS}/usr/sbin/wifi-up
+
 cd ${OURDIR}
 rm -f ${ROOTFS}/usr/bin/qemu-static-aarch64
 
