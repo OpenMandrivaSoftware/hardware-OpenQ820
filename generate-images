@@ -129,6 +129,7 @@ sleep 1s
 /sbin/iw dev wlan0 connect $SSID
 sleep 1s
 rm -f /etc/resolv.conf
+sleep 1s
 /sbin/dhclient wlan0
 EOF
 chmod +x ${ROOTFS}/usr/sbin/wifi-up
