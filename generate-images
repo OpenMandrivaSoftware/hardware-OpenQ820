@@ -89,6 +89,11 @@ EOF
 rm -f ${ROOTFS}/lib/firmware/ath10k/QCA6174/hw3.0/board-2.bin
 wget -O ${ROOTFS}/lib/firmware/ath10k/QCA6174/hw3.0/board-2.bin https://github.com/kvalo/ath10k-firmware/raw/master/QCA6174/hw3.0/board-2.bin
 
+# Try to get Freedreno firmware -- not sure this is an exact match
+for i in a530_gpmu.fw2 a530_pfp.fw a530_pm4.fw a530_zap.b00 a530_zap.b01 a530_zap.b02 a530_zap.elf a530_zap.mdt a530v1_pfp.fw a530v1_pm4.fw a530v2_seq.fw2 a530v3_gpmu.fw2 a530v3_seq.fw2; do
+	wget -O ${ROOTFS}/lib/firmware/$i http://svn.badboyzsvns.com/HTC10_SPR_1.24/system/etc/firmware/$i
+done
+
 # FIXME REMOVE BEFORE PRODUCTION BUILD -- allow root login for convenience
 echo 'PermitRootLogin yes' >>${ROOTFS}/etc/ssh/sshd_config
 rm ${ROOTFS}/etc/ssh/denyusers
