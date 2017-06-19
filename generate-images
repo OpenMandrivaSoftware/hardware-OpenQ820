@@ -160,6 +160,6 @@ mkdir -p ${ROOTFS}/home
 cp -a ${ROOTFS}/etc/skel ${ROOTFS}/home/omv
 chown 1001:1001 ${ROOTFS}/home/omv
 
-make_ext4fs -s -l 10G Android/userdata.img ${ROOTFS}
+make_ext4fs -s -l 10G Android/userdata.img ${ROOTFS}/home
 
 rm -rf ${ROOTFS}
