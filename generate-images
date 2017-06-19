@@ -168,3 +168,16 @@ chown 1001:1001 ${ROOTFS}/home/omv
 make_ext4fs -s -l 10G Android/userdata.img ${ROOTFS}/home
 
 rm -rf ${ROOTFS}
+if [ "$ABF" = "1" ]; then
+	output_dir="$HOME/output"
+	if [ ! -d "$output_dir" ]; then
+	mkdir -p $output_dir
+	mv Android/userdata.img Android/system.img $output_dir
+	else
+	mv Android/userdata.img Android/system.img $output_dir
+	fi
+	pushd kernel
+	make mrproper
+	popd
+fi
+
