@@ -17,7 +17,7 @@ which aarch64-linux-gnu-ld &>/dev/null || urpmi --auto --no-verify-rpm cross-aar
 which make &>/dev/null || urpmi --auto --no-verify-rpm make glibc-devel
 which bc &>/dev/null || urpmi --auto --no-verify-rpm bc
 which gcc &>/dev/null || urpmi --auto --no-verify-rpm gcc
-which aarch64-linux-gnu-gcc &>/dev/null || urpmi --auto --no-verify-rpm cross-aarch64-mandriva-linux-gnu-gcc
+which aarch64-linux-gnu-gcc &>/dev/null || urpmi --auto --no-verify-rpm cross-aarch64-mandriva-linux-gnu-gcc-bootstrap
 which make_ext4fs &>/dev/null || urpmi --auto --no-verify-rpm android-tools
 which qemu-static-aarch64 &>/dev/null || urpmi --auto --no-verify-rpm qemu-static-aarch64
 
