@@ -13,10 +13,11 @@ if [ -z "$ROOTFS" ]; then
 	exit 1
 fi
 
-which aarch64-linux-gnu-ld &>/dev/null || urpmi --auto cross-aarch64-mandriva-linux-gnu-binutils
+which aarch64-linux-gnu-ld &>/dev/null || urpmi --auto --no-verify-rpm cross-aarch64-mandriva-linux-gnu-binutils
+which make &>/dev/null || urpmi --auto --no-verify-rpm make
 which aarch64-linux-gnu-gcc &>/dev/null || urpmi --auto cross-aarch64-mandriva-linux-gnu-gcc-bootstrap
-which make_ext4fs &>/dev/null || urpmi --auto android-tools
-which qemu-static-aarch64 &>/dev/null || urpmi --auto qemu-static-aarch64
+which make_ext4fs &>/dev/null || urpmi --auto --no-verify-rpm android-tools
+which qemu-static-aarch64 &>/dev/null || urpmi --auto --no-verify-rpm qemu-static-aarch64
 
 if ! which make_ext4fs &>/dev/null; then
 	echo "Install android-tools from cooker"
