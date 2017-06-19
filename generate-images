@@ -74,12 +74,16 @@ chroot ${ROOTFS} systemctl set-default multi-user.target
 chroot ${ROOTFS} systemctl enable getty@tty1.service
 chroot ${ROOTFS} systemctl enable getty@ttyMSM0.service
 chroot ${ROOTFS} systemctl enable sshd.service
-for i in dbus getty sshd systemd-udevd systemd-udev-trigger NetworkManager plymouth-quit plymouth-quit-wait systemd-ask-password-wall systemd-logind systemd-networkd systemd-resolved systemd-update-utmp-runlevel systemd-user-sessions; do
-	[ -e ${ROOTFS}/lib/systemd/system/$i.target ] && ln -s /lib/systemd/system/$i.target ${ROOTFS}/etc/systemd/system/multi-user.target.wants/
-	[ -e ${ROOTFS}/lib/systemd/system/$i.service ] && ln -s /lib/systemd/system/$i.service ${ROOTFS}/etc/systemd/system/multi-user.target.wants/
+for i in dbus getty sshd systemd-udevd systemd-udev-trigger NetworkManager systemd-ask-password-wall systemd-logind systemd-networkd systemd-resolved systemd-update-utmp-runlevel systemd-user-sessions; do
+	[ -e ${ROOTFS}/lib/systemd/system/$i.target ] && ln -s /lib/systemd/system/$i.target ${ROOTFS}/lib/systemd/system/multi-user.target.wants/
+	[ -e ${ROOTFS}/lib/systemd/system/$i.service ] && ln -s /lib/systemd/system/$i.service ${ROOTFS}/lib/systemd/system/multi-user.target.wants/
 
-	[ -e ${ROOTFS}/lib/systemd/system/$i.target ] && ln -s /lib/systemd/system/$i.target ${ROOTFS}/etc/systemd/system/graphical.target.wants/
-	[ -e ${ROOTFS}/lib/systemd/system/$i.service ] && ln -s /lib/systemd/system/$i.service ${ROOTFS}/etc/systemd/system/graphical.target.wants/
+	[ -e ${ROOTFS}/lib/systemd/system/$i.target ] && ln -s /lib/systemd/system/$i.target ${ROOTFS}/lib/systemd/system/graphical.target.wants/
+	[ -e ${ROOTFS}/lib/systemd/system/$i.service ] && ln -s /lib/systemd/system/$i.service ${ROOTFS}/lib/systemd/system/graphical.target.wants/
+done
+for i in sddm; do
+	[ -e ${ROOTFS}/lib/systemd/system/$i.target ] && ln -s /lib/systemd/system/$i.target ${ROOTFS}/lib/systemd/system/graphical.target.wants/
+	[ -e ${ROOTFS}/lib/systemd/system/$i.service ] && ln -s /lib/systemd/system/$i.service ${ROOTFS}/lib/systemd/system/graphical.target.wants/
 done
 cat >${ROOTFS}/etc/fstab <<'EOF'
 /dev/sde18	/	ext4	defaults,noatime,discard	0	0
