@@ -14,8 +14,8 @@ if [ -z "$ROOTFS" ]; then
 fi
 
 which aarch64-linux-gnu-ld &>/dev/null || urpmi --auto --no-verify-rpm cross-aarch64-mandriva-linux-gnu-binutils
-which make &>/dev/null || urpmi --auto --no-verify-rpm make
-which aarch64-linux-gnu-gcc &>/dev/null || urpmi --auto cross-aarch64-mandriva-linux-gnu-gcc-bootstrap
+which make &>/dev/null || urpmi --auto --no-verify-rpm make glibc-devel bc
+which aarch64-linux-gnu-gcc &>/dev/null || urpmi --auto cross-aarch64-mandriva-linux-gnu-gcc
 which make_ext4fs &>/dev/null || urpmi --auto --no-verify-rpm android-tools
 which qemu-static-aarch64 &>/dev/null || urpmi --auto --no-verify-rpm qemu-static-aarch64
 
@@ -39,8 +39,9 @@ make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- oq820_defconfig
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j$(getconf _NPROCESSORS_ONLN) Image dtbs modules
 cd ..
 
-# https://abf.openmandriva.org/platforms/cooker/products/47/product_build_lists/1052
-[ -e rootfs-aarch64-systemd.tar.xz ] || wget -O rootfs-aarch64-systemd.tar.xz http://file-store.openmandriva.org/api/v1/file_stores/b27a2de55894b33ba492c0cd13d1f05fd3796e7d
+# https://abf.openmandriva.org/platforms/cooker/products/47/product_build_lists/1179
+ROOTFS_HASH="3286a8ee346d0cf82a7c5c607a9564ce96fd909e"
+[ -e rootfs-aarch64-systemd.tar.xz ] || wget -O rootfs-aarch64-systemd.tar.xz http://file-store.openmandriva.org/api/v1/file_stores/$ROOTFS_HASH
 
 KERNEL=$(cat ${KERNELDIR}/include/config/kernel.release)
 
