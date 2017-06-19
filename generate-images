@@ -74,16 +74,18 @@ chroot ${ROOTFS} systemctl set-default multi-user.target
 chroot ${ROOTFS} systemctl enable getty@tty1.service
 chroot ${ROOTFS} systemctl enable getty@ttyMSM0.service
 chroot ${ROOTFS} systemctl enable sshd.service
-for i in getty sshd systemd-user-sessions; do
-# FIXME may need to add NetworkManager systemd-networkd systemd-resolved
+for i in dbus getty sshd systemd-udevd systemd-udev-trigger NetworkManager plymouth-quit plymouth-quit-wait systemd-ask-password-wall systemd-logind systemd-networkd systemd-resolved systemd-update-utmp-runlevel systemd-user-sessions; do
 	[ -e ${ROOTFS}/lib/systemd/system/$i.target ] && ln -s /lib/systemd/system/$i.target ${ROOTFS}/etc/systemd/system/multi-user.target.wants/
 	[ -e ${ROOTFS}/lib/systemd/system/$i.service ] && ln -s /lib/systemd/system/$i.service ${ROOTFS}/etc/systemd/system/multi-user.target.wants/
+
+	[ -e ${ROOTFS}/lib/systemd/system/$i.target ] && ln -s /lib/systemd/system/$i.target ${ROOTFS}/etc/systemd/system/graphical.target.wants/
+	[ -e ${ROOTFS}/lib/systemd/system/$i.service ] && ln -s /lib/systemd/system/$i.service ${ROOTFS}/etc/systemd/system/graphical.target.wants/
 done
 cat >${ROOTFS}/etc/fstab <<'EOF'
 /dev/sde18	/	ext4	defaults,noatime,discard	0	0
+/dev/sda9	/home	ext4	defaults,noatime,discard	0	1
 EOF
 # FIXME should add
-# /dev/sda9	/home	ext4	defaults,noatime,discard	0	1
 
 # FIXME REMOVE BEFORE PRODUCTION BUILD -- allow root login for convenience
 echo 'PermitRootLogin yes' >>${ROOTFS}/etc/ssh/sshd_config
@@ -153,9 +155,11 @@ umount ${ROOTFS}/proc
 rm -f ${ROOTFS}/dev/null
 make_ext4fs -s -l 2G Android/system.img ${ROOTFS}
 
-rm -rf ${ROOTFS}/*
-mkdir ${ROOTFS}/omv
-chown 1001:1001 ${ROOTFS}/omv
+rm -rf ${ROOTFS}/home/*
+mkdir -p ${ROOTFS}/home
+cp -a ${ROOTFS}/etc/skel ${ROOTFS}/home/omv
+chown 1001:1001 ${ROOTFS}/home/omv
+
 make_ext4fs -s -l 10G Android/userdata.img ${ROOTFS}
 
 rm -rf ${ROOTFS}
