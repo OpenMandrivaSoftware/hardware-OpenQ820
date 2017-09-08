@@ -33,7 +33,7 @@ if [ -d kernel ]; then
 	git pull
 	cd ..
 else
-	git clone --depth 1 -b hardware/OpenQ820/4.11.6 https://github.com/OpenMandrivaSoftware/linux.git kernel
+	git clone --depth 1 -b hardware/OpenQ820/4.11.12 https://github.com/OpenMandrivaSoftware/linux.git kernel
 fi
 KERNELDIR=$(pwd)/kernel
 
