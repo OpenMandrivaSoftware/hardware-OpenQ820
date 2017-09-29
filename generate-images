@@ -13,14 +13,16 @@ if [ -z "$ROOTFS" ]; then
 	exit 1
 fi
 
-which aarch64-linux-gnu-ld &>/dev/null || urpmi --auto --no-verify-rpm cross-aarch64-mandriva-linux-gnu-binutils
-which make &>/dev/null || urpmi --auto --no-verify-rpm make glibc-devel
-which bc &>/dev/null || urpmi --auto --no-verify-rpm bc
-which gcc &>/dev/null || urpmi --auto --no-verify-rpm gcc
-which dtc &>/dev/null || urpmi --auto --no-verify-rpm dtc lib64fdt1-devel
-which aarch64-linux-gnu-gcc &>/dev/null || urpmi --auto --no-verify-rpm cross-aarch64-mandriva-linux-gnu-gcc-bootstrap
-which make_ext4fs &>/dev/null || urpmi --auto --no-verify-rpm android-tools
-which qemu-static-aarch64 &>/dev/null || urpmi --auto --no-verify-rpm qemu-static-aarch64
+set -e
+
+which aarch64-linux-gnu-ld &>/dev/null || urpmi --downloader wget --auto --no-verify-rpm cross-aarch64-mandriva-linux-gnu-binutils
+which make &>/dev/null || urpmi --downloader wget --auto --no-verify-rpm make glibc-devel
+which bc &>/dev/null || urpmi --downloader wget --auto --no-verify-rpm bc
+which gcc &>/dev/null || urpmi --downloader wget --auto --no-verify-rpm gcc
+which dtc &>/dev/null || urpmi --downloader wget --auto --no-verify-rpm dtc lib64fdt1-devel
+which aarch64-linux-gnu-gcc &>/dev/null || urpmi --downloader wget --auto --no-verify-rpm cross-aarch64-mandriva-linux-gnu-gcc-bootstrap
+which make_ext4fs &>/dev/null || urpmi --downloader wget --auto --no-verify-rpm android-tools
+which qemu-static-aarch64 &>/dev/null || urpmi --downloader wget --auto --no-verify-rpm qemu-static-aarch64
 
 if ! which make_ext4fs &>/dev/null; then
 	echo "Install android-tools from cooker"
@@ -50,7 +52,11 @@ KERNEL=$(cat ${KERNELDIR}/include/config/kernel.release)
 
 rm -f Android/system.ext4 Android/userdata.ext4
 cd ${ROOTFS}
-tar xf ${OURDIR}/rootfs-aarch64-systemd.tar.xz
+if [ -e ${OURDIR}/rootfs-cache.tar.xz ]; then
+	tar xf ${OURDIR}/rootfs-cache.tar.xz
+else
+	tar xf ${OURDIR}/rootfs-aarch64-systemd.tar.xz
+fi
 mount --bind /proc ${ROOTFS}/proc
 mount --bind /sys ${ROOTFS}/sys
 mount --bind /dev ${ROOTFS}/dev
@@ -58,87 +64,107 @@ mount --bind /dev/pts ${ROOTFS}/dev/pts
 mount --bind /run ${ROOTFS}/run
 cat ${ROOTFS}/etc/os-release >${ROOTFS}/usr/lib/os-release
 
-# Create omv user (password omv)
-echo 'omv:x:1001:1001::/home/omv:/bin/bash' >>${ROOTFS}/etc/passwd
-echo 'omv:$6$rG3bQ92hkTNubV1p$5qPB9FoXBhNcSE1FOklCoEDowveAgjSf2cHYVwCENZaWtgpFQaRRRN5Ihwd8nuaKMdA1R1XouOasJ7u5dbiGt0:17302:0:99999:7:::' >>${ROOTFS}/etc/shadow
-echo 'omv:x:1001:' >>${ROOTFS}/etc/group
-sed -i -e 's,wheel:x:10:$,wheel:x:10:omv,' ${ROOTFS}/etc/group
+if ! [ -e ${OURDIR}/rootfs-cache.tar.xz ]; then
+	# Create omv user (password omv)
+	echo 'omv:x:1001:1001::/home/omv:/bin/bash' >>${ROOTFS}/etc/passwd
+	echo 'omv:$6$rG3bQ92hkTNubV1p$5qPB9FoXBhNcSE1FOklCoEDowveAgjSf2cHYVwCENZaWtgpFQaRRRN5Ihwd8nuaKMdA1R1XouOasJ7u5dbiGt0:17302:0:99999:7:::' >>${ROOTFS}/etc/shadow
+	echo 'omv:x:1001:' >>${ROOTFS}/etc/group
+	sed -i -e 's,wheel:x:10:$,wheel:x:10:omv,' ${ROOTFS}/etc/group
 
-# Unlock root account (also password omv)
-sed -i -e 's,^root:.:,root:$6$rG3bQ92hkTNubV1p$5qPB9FoXBhNcSE1FOklCoEDowveAgjSf2cHYVwCENZaWtgpFQaRRRN5Ihwd8nuaKMdA1R1XouOasJ7u5dbiGt0:,' ${ROOTFS}/etc/shadow
+	# Unlock root account (also password omv)
+	sed -i -e 's,^root:.:,root:$6$rG3bQ92hkTNubV1p$5qPB9FoXBhNcSE1FOklCoEDowveAgjSf2cHYVwCENZaWtgpFQaRRRN5Ihwd8nuaKMdA1R1XouOasJ7u5dbiGt0:,' ${ROOTFS}/etc/shadow
+fi
 
 cp /usr/bin/qemu-static-aarch64 ${ROOTFS}/usr/bin
 cd ${KERNELDIR}
 make modules_install INSTALL_MOD_PATH=${ROOTFS} ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
-chroot ${ROOTFS} /usr/sbin/urpmi --auto --no-verify-rpm --auto-update
-chroot ${ROOTFS} /usr/sbin/urpmi --no-verify-rpm --auto kernel-firmware adreno-firmware dracut less procps-ng htop fbset iproute2 net-tools pciutils usbutils wpa_supplicant iw iproute2 net-tools wireless-tools networkmanager openssh-server dhcp-client
-chroot ${ROOTFS} /usr/sbin/urpmi --no-verify-rpm --auto sddm x11-driver-video-modesetting lib64dri-drivers-freedreno
-chroot ${ROOTFS} /usr/sbin/urpmi --no-verify-rpm --auto vim-enhanced strace
+chroot ${ROOTFS} /usr/sbin/urpmi --downloader wget --auto --no-verify-rpm --auto-update
+if ! [ -e ${OURDIR}/rootfs-cache.tar.xz ]; then
+	chroot ${ROOTFS} /usr/sbin/urpmi --downloader wget --no-verify-rpm --auto basesystem-minimal distro-release-common distro-release-OpenMandriva meta-task alsa-plugins alsa-plugins-pulseaudio alsa-utils bootsplash bootloader-utils \
+		distro-theme-OpenMandriva distro-theme-OpenMandriva-screensaver dynamic indexhtml info info-install irqbalance mailcap man mktemp mkxauth mlocate plymouth-system-theme shared-desktop-ontologies \
+		sound-scripts sound-theme-freedesktop soundwrapper sudo task-x11 tmpwatch upower urw-fonts wget whois xdg-compliance xdg-user-dirs xdg-utils xrandr zip unzip \
+		aria2 bash-completion bind-utils cdialog command-not-found gnupg htop lame networkmanager-openvpn open rsync sane-backends sash qupzilla fonts-ttf-decoratives fonts-ttf-dejavu \
+		fonts-ttf-droid fonts-ttf-liberation fonts-ttf-west_european google-crosextra-carlito-fonts google-crosextra-caladea-fonts noto-sans-fonts \
+		noto-sans-cjk-fonts noto-serif-fonts noto-serif-thai x11-font-cyrillic x11-compose-cache x11-tools x11-font-type1 x11-font-misc x11-data-cursor-themes \
+		task-pulseaudio alsa-plugins-pulseaudio pavucontrol-qt pulseaudio pulseaudio-module-bluetooth pulseaudio-module-gconf pulseaudio-module-x11 pulseaudio-module-zeroconf pulseaudio-utils \
+		smplayer mpv udisks2
+	#chroot ${ROOTFS} /usr/sbin/urpmi --downloader wget --no-verify-rpm --auto task-printing libreoffice-calc libreoffice-common libreoffice-draw libreoffice-impress libreoffice-kde4 libreoffice-math libreoffice-style-oxygen libreoffice-writer
+	chroot ${ROOTFS} /usr/sbin/urpmi --downloader wget --no-verify-rpm --auto extremetuxracer chromium-bsu
+	chroot ${ROOTFS} /usr/sbin/urpmi --downloader wget --no-verify-rpm --auto kernel-firmware adreno-firmware dracut less procps-ng htop fbset iproute2 net-tools pciutils usbutils wpa_supplicant iw iproute2 net-tools wireless-tools networkmanager openssh-server dhcp-client
+	chroot ${ROOTFS} /usr/sbin/urpmi --downloader wget --no-verify-rpm --auto sddm x11-driver-video-modesetting lib64dri-drivers-freedreno
+	chroot ${ROOTFS} /usr/sbin/urpmi --downloader wget --no-verify-rpm --auto task-plasma phonon4qt5-gstreamer fcitx-qt5 showfoto enchant ffmpeg jasper nss openssl poppler-data oma-welcome
+	chroot ${ROOTFS} /usr/sbin/urpmi --downloader wget --no-verify-rpm --auto vim-enhanced strace
+fi
 chroot ${ROOTFS} /sbin/dracut --xz --omit-drivers pata_acpi -o ifcfg -o lvm -o mdraid -o aufs-mount -f /boot/initrd-${KERNEL}.img ${KERNEL}
-chroot ${ROOTFS} systemctl set-default multi-user.target
+chroot ${ROOTFS} systemctl set-default graphical.target
 chroot ${ROOTFS} systemctl enable getty@tty1.service
 chroot ${ROOTFS} systemctl enable sshd.service
 for i in dbus getty sshd systemd-udevd systemd-udev-trigger NetworkManager systemd-ask-password-wall systemd-logind systemd-networkd systemd-resolved systemd-update-utmp-runlevel systemd-user-sessions; do
-	[ -e ${ROOTFS}/lib/systemd/system/$i.target ] && ln -s /lib/systemd/system/$i.target ${ROOTFS}/lib/systemd/system/multi-user.target.wants/
-	[ -e ${ROOTFS}/lib/systemd/system/$i.service ] && ln -s /lib/systemd/system/$i.service ${ROOTFS}/lib/systemd/system/multi-user.target.wants/
+	[ -e ${ROOTFS}/lib/systemd/system/$i.target ] && ln -s /lib/systemd/system/$i.target ${ROOTFS}/lib/systemd/system/multi-user.target.wants/ || :
+	[ -e ${ROOTFS}/lib/systemd/system/$i.service ] && ln -s /lib/systemd/system/$i.service ${ROOTFS}/lib/systemd/system/multi-user.target.wants/ || :
 
-	[ -e ${ROOTFS}/lib/systemd/system/$i.target ] && ln -s /lib/systemd/system/$i.target ${ROOTFS}/lib/systemd/system/graphical.target.wants/
-	[ -e ${ROOTFS}/lib/systemd/system/$i.service ] && ln -s /lib/systemd/system/$i.service ${ROOTFS}/lib/systemd/system/graphical.target.wants/
+	[ -e ${ROOTFS}/lib/systemd/system/$i.target ] && ln -s /lib/systemd/system/$i.target ${ROOTFS}/lib/systemd/system/graphical.target.wants/ || :
+	[ -e ${ROOTFS}/lib/systemd/system/$i.service ] && ln -s /lib/systemd/system/$i.service ${ROOTFS}/lib/systemd/system/graphical.target.wants/ || :
 done
 for i in sddm; do
-	[ -e ${ROOTFS}/lib/systemd/system/$i.target ] && ln -s /lib/systemd/system/$i.target ${ROOTFS}/lib/systemd/system/graphical.target.wants/
-	[ -e ${ROOTFS}/lib/systemd/system/$i.service ] && ln -s /lib/systemd/system/$i.service ${ROOTFS}/lib/systemd/system/graphical.target.wants/
+	[ -e ${ROOTFS}/lib/systemd/system/$i.target ] && ln -s /lib/systemd/system/$i.target ${ROOTFS}/lib/systemd/system/graphical.target.wants/ || :
+	[ -e ${ROOTFS}/lib/systemd/system/$i.service ] && ln -s /lib/systemd/system/$i.service ${ROOTFS}/lib/systemd/system/graphical.target.wants/ || :
 done
 cat >${ROOTFS}/etc/fstab <<'EOF'
-/dev/sde18	/	ext4	defaults,noatime,discard	0	0
-/dev/sda9	/home	ext4	defaults,noatime,discard	0	1
+/dev/sda9	/	ext4	defaults,noatime,discard	0	0
+/dev/sde18	/home	ext4	defaults,noatime,discard	0	1
 EOF
-# FIXME should add
 
-# FIXME REMOVE BEFORE PRODUCTION BUILD -- allow root login for convenience
-echo 'PermitRootLogin yes' >>${ROOTFS}/etc/ssh/sshd_config
-rm ${ROOTFS}/etc/ssh/denyusers
-touch ${ROOTFS}/etc/ssh/denyusers
+if ! [ -e ${OURDIR}/rootfs-cache.tar.xz ]; then
+	# FIXME REMOVE BEFORE PRODUCTION BUILD -- allow root login for convenience
+	echo 'PermitRootLogin yes' >>${ROOTFS}/etc/ssh/sshd_config
+	rm ${ROOTFS}/etc/ssh/denyusers
+	touch ${ROOTFS}/etc/ssh/denyusers
 
-cat >${ROOTFS}/usr/sbin/wifi-up <<'EOF'
-#!/bin/sh
-if [ -n "$1" ]; then
-	SSID="$1"
-	shift
-else
-	echo -n "SSID: "
-	read SSID
-fi
-if [ -n "$1" ]; then
-	PASSWORD="$1"
-	shift
-else
-	echo -n "Password (WARNING: will be visible): "
-	read PASSWORD
-fi
-cat >/tmp/wpa.conf <<END
-network={
-	ssid="$SSID"
-	psk="$PASSWORD"
-}
-END
-killall wpa_supplicant &>/dev/null
-/sbin/modprobe ath10k_pci
-sleep 2s
-/sbin/ifconfig wlan0 up
-sleep 1s
-# Yes, needs to be done twice... Probably timing
-/sbin/ifconfig wlan0 up
-sleep 1s
-/usr/sbin/wpa_supplicant -B -c /tmp/wpa.conf -Dnl80211 -iwlan0
-sleep 1s
-/sbin/iw dev wlan0 connect $SSID
-sleep 1s
-rm -f /etc/resolv.conf
-sleep 1s
-/sbin/dhclient wlan0
+	cat >${ROOTFS}/usr/sbin/wifi-up <<'EOF'
+	#!/bin/sh
+	if [ -n "$1" ]; then
+		SSID="$1"
+		shift
+	else
+		echo -n "SSID: "
+		read SSID
+	fi
+	if [ -n "$1" ]; then
+		PASSWORD="$1"
+		shift
+	else
+		echo -n "Password (WARNING: will be visible): "
+		read PASSWORD
+	fi
+	cat >/tmp/wpa.conf <<END
+	network={
+		ssid="$SSID"
+		psk="$PASSWORD"
+	}
+	END
+	killall wpa_supplicant &>/dev/null
+	/sbin/modprobe ath10k_pci
+	sleep 2s
+	/sbin/ifconfig wlan0 up
+	sleep 1s
+	# Yes, needs to be done twice... Probably timing
+	/sbin/ifconfig wlan0 up
+	sleep 1s
+	/usr/sbin/wpa_supplicant -B -c /tmp/wpa.conf -Dnl80211 -iwlan0
+	sleep 1s
+	/sbin/iw dev wlan0 connect $SSID
+	sleep 1s
+	rm -f /etc/resolv.conf
+	sleep 1s
+	/sbin/dhclient wlan0
 EOF
-chmod +x ${ROOTFS}/usr/sbin/wifi-up
+	chmod +x ${ROOTFS}/usr/sbin/wifi-up
+
+	# Enable autologin in sddm...
+	sed -i -e 's,^User=,User=omv,' ${ROOTFS}/etc/sddm.conf
+	sed -i -e 's,^Session=,Session=plasma.desktop,' ${ROOTFS}/etc/sddm.conf
+fi
 
 cd ${OURDIR}
 rm -f ${ROOTFS}/usr/bin/qemu-static-aarch64
@@ -150,7 +176,7 @@ ${OURDIR}/skales/mkbootimg --kernel ${KERNELDIR}/arch/arm64/boot/Image \
 	--dt /tmp/dt.img \
 	--pagesize 4096 \
 	--base 0x80000000 \
-	--cmdline "root=/dev/disk/by-partlabel/system rw rootwait console=ttyMSM0,115200n8 systemd.unit=multi-user.target"
+	--cmdline "root=/dev/disk/by-partlabel/userdata rw rootwait console=ttyMSM0,115200n8 systemd.unit=graphical.target"
 rm -f /tmp/dt.img
 
 umount ${ROOTFS}/run
@@ -161,23 +187,27 @@ umount ${ROOTFS}/proc
 
 # FIXME we may need to make make_ext4fs understand device nodes
 rm -f ${ROOTFS}/dev/null
-make_ext4fs -s -l 2G Android/system.img ${ROOTFS}
+pushd ${ROOTFS}
+tar cf ${OURDIR}/rootfs-cache.tar *
+popd
+xz -9ef ${OURDIR}/rootfs-cache.tar
+make_ext4fs -s -l 10G -K Android/userdata.img ${ROOTFS}
 
 rm -rf ${ROOTFS}/home/*
 mkdir -p ${ROOTFS}/home
 cp -a ${ROOTFS}/etc/skel ${ROOTFS}/home/omv
-chown 1001:1001 ${ROOTFS}/home/omv
+chown -R 1001:1001 ${ROOTFS}/home/omv
 
-make_ext4fs -s -l 10G Android/userdata.img ${ROOTFS}/home
+make_ext4fs -s -l 2G -K Android/system.img ${ROOTFS}/home
 
 rm -rf ${ROOTFS}
 if [ "$ABF" = "1" ]; then
 	output_dir="/home/omv/output"
 	if [ ! -d "$output_dir" ]; then
-	mkdir -p $output_dir
-	mv Android/userdata.img Android/system.img $output_dir
+		mkdir -p $output_dir
+		mv Android/userdata.img Android/system.img $output_dir
 	else
-	mv Android/userdata.img Android/system.img $output_dir
+		mv Android/userdata.img Android/system.img $output_dir
 	fi
 	pushd kernel
 	make mrproper
